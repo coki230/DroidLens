@@ -18,3 +18,7 @@ d = u2.connect() # 连接手机
 
 def app_list_running():
     return d.app_list_running()
+
+
+def app_start(package):
+    d.app_start(package)
