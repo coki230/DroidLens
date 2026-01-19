@@ -1,0 +1,9 @@
+[project]
+name = "droidlens"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.25.0",
+    "uiautomator2>=3.5.0",
+]

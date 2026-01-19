@@ -3,7 +3,7 @@ import asyncio
 import sys
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.types import Tool, TextContent, ImageContent
 import phone_util as pu
 
 # 创建服务器实例
@@ -15,8 +15,8 @@ async def list_tools() -> list[Tool]:
     """list all tools"""
     return [
         Tool(
-            name="app_list_running",
-            description="list all running apps in android phone",
+            name="app_list",
+            description="list all apps in android phone",
             inputSchema={
                 "type": "object",
                 "properties": {}
@@ -35,7 +35,69 @@ async def list_tools() -> list[Tool]:
                 },
                 "required": ["package"]
             }
-        )
+        ),
+        Tool(
+            name="dump_hierarchy",
+            description="dump current page hierarchy",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        ),
+        Tool(
+            name="get_current_page",
+            description="get current page picture",
+            inputSchema={
+                "type": "object",
+                "properties": {}
+            }
+        ),
+        Tool(
+            name="click",
+            description="Click pixel coordinates",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "click_type": {
+                        "type": "string",
+                        "description": "this click type should be click, double_click, long_click. only the three value",
+                    },
+                    "x": {
+                        "type": "integer",
+                        "description": "x-coordinate",
+                    },
+                    "y": {
+                        "type": "integer",
+                        "description": "y-coordinate",
+                    },
+
+                },
+                "required": ["click_type", "x", "y"]
+            }
+        ),
+        Tool(
+            name="interact_with_element",
+            description="get and manipulate element",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "resource_id": {
+                        "type": "string",
+                        "description": "the element resource id",
+                    },
+                    "operation": {
+                        "type": "string",
+                        "description": "how to manipulate element, there have some value like: click, long_click, clear_text, set_text",
+                    },
+                    "operation_value": {
+                        "type": "string",
+                        "description": "some operation need value, so here is the value",
+                    },
+
+                },
+                "required": ["resource_id", "operation"]
+            }
+        ),
     ]
 
 
@@ -43,26 +105,43 @@ async def list_tools() -> list[Tool]:
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     """call tool"""
 
-    if name == "app_list_running":
-        try:
-            result = str(pu.app_list_running())
-            return [TextContent(type="text", text=result or "无设备连接")]
-        except Exception as e:
-            return [TextContent(type="text", text=f"执行失败: {str(e)}")]
+    match name:
+        case "app_list":
+            try:
+                result = str(pu.app_list())
+                return [TextContent(type="text", text=result or "no device")]
+            except Exception as e:
+                return [TextContent(type="text", text=f"执行失败: {str(e)}")]
+        case "app_start":
+            package = arguments.get("package")
+            if not package:
+                return [TextContent(type="text", text="错误: 缺少 package 参数")]
+            try:
+                pu.app_start(package)
+                return [TextContent(type="text", text="start success")]
+            except Exception as e:
+                return [TextContent(type="text", text=f"执行失败: {str(e)}")]
+        case "dump_hierarchy":
+            result = str(pu.dump_hierarchy())
+            return [TextContent(type="text", text=result or "no device")]
+        case "get_current_page":
+            result = pu.get_current_page()
+            return [ImageContent(type="image", data=result, mimeType="image/png")]
+        case "click":
+            click_type = arguments.get("click_type")
+            x = arguments.get("x")
+            y = arguments.get("y")
+            pu.click(click_type, x, y)
+            return [TextContent(type="text", text="click success")]
+        case "interact_with_element":
+            resource_id = arguments.get("resource_id")
+            operation = arguments.get("operation")
+            operation_value = arguments.get("operation_value")
+            pu.interact_with_element(resource_id, operation, operation_value)
+            return [TextContent(type="text", text="done success")]
 
-    elif name == "app_start":
-        package = arguments.get("package")
-        if not package:
-            return [TextContent(type="text", text="错误: 缺少 package 参数")]
-
-        try:
-            result = pu.app_start(package)
-            return [TextContent(type="text", text="start success")]
-        except Exception as e:
-            return [TextContent(type="text", text=f"执行失败: {str(e)}")]
-
-    else:
-        return [TextContent(type="text", text=f"未知工具: {name}")]
+        case _:
+            return [TextContent(type="text", text=f"未知工具: {name}")]
 
 
 async def main():
